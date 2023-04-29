@@ -40,13 +40,18 @@ namespace Script
             Quaternion shipRotation = transform.rotation;
 
             // Calculate the new rotation of the world
-            float right = Input.GetAxis("Horizontal"); // Rotate around the Y-axis based on 'A' or 'D' input
+            float right = 0f; // Rotate around the Y-axis based on 'A' or 'D' input
             float up = -Input.GetAxis("Vertical"); // Rotate around the X-axis based on 'W' input
+
+            if (Input.GetKey(KeyCode.W))
+            {
+                right = Input.GetAxis("Horizontal");
+            }
 
             // Rotate the Earth sphere around the X- and Y-axes
             earthRotation = Quaternion.Euler(up,right,0f) * earthRotation;
             
-            shipRotation = Quaternion.Euler(0f,0f,-right);
+            shipRotation = Quaternion.Euler(0f,0f,-right*10);
             
             // Set the new rotation of the world
             transform.rotation = earthRotation;
