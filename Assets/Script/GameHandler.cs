@@ -17,7 +17,8 @@ namespace Script
         [SerializeField] public float radius = 10f;
         [SerializeField] public float moveSpeed = 0.5f;
         [SerializeField] public float rotationSpeed = 0.5f;
-        
+
+        public bool started;
 
         public float right = 0f;
         public float up = 0f;
@@ -46,8 +47,10 @@ namespace Script
         public GameObject pickUpPrefab;
         public GameObject deliverPrefab;
         public GameObject directionalLight;
+        public GameObject cameraObject;
         public GameObject cloud1;
         public List<GameObject> islands;
+        public Transform enemyPawn;
         
         public LayerMask islandLayer;
         public float raycastDistance = 10f;
@@ -66,13 +69,12 @@ namespace Script
         // This method is called when the game starts
         void Start()
         {
-            SpawnCamera();
             SpawnPlayerShip();
-            SpawnPirateShip();
             SpawnIslands();
             scoreText = GameObject.Find("ScoreText").GetComponent<TMP_Text>();
             UpdateScoreText();
             SpawnClouds();
+            cameraObject = GameObject.Find("Main Camera");
             // Get the directional light object from the scene
             directionalLight = GameObject.Find("Sky");
             directionalLight.transform.parent = transform; // Make the Earth sphere the parent of the Directional Light object
@@ -108,6 +110,10 @@ namespace Script
             if (hit1 || hit2)
             {
                 _isIsland = true;
+                if (hit1 && hitInfo1.collider.gameObject.CompareTag("PirateShip") || hit2 && hitInfo2.collider.gameObject.CompareTag("PirateShip"))
+                {
+                    Debug.Log("Pirates!!!");
+                }
             }
             else
             {
@@ -234,102 +240,13 @@ namespace Script
             playerShip.transform.rotation = shipRotation;
             
             directionalLight.transform.rotation = Quaternion.Euler(0f, rotationSpeed * 10f * Time.deltaTime, 0f) * directionalLight.transform.rotation;
-            /*
-            Vector3 pdirection1 = new Vector3(0.5f, 5f, 6f);
-            pdirection1 = (pdirection1 + playerShip.transform.position);
-            float pdistance1 = 2f;
-            Vector3 pdirection2 = new Vector3(-0.5f, 5f, 6f);
-            pdirection2 = (pdirection2 + playerShip.transform.position);
-            float pdistance2 = 2f;
-            Vector3 pdirection3 = new Vector3(-5f, 0f, 5.2f);
-            pdirection3 = (pdirection3 + playerShip.transform.position);
-            float pdistance3 = 2f;
-            Vector3 pdirection4 = new Vector3(5f, 0f, 5.2f);
-            pdirection4 = (pdirection4 + playerShip.transform.position);
-            float pdistance4 = 2f;
-            
-            RaycastHit phitInfo1, phitInfo2, pleftHit, prightHit;
-            bool phit1 = Physics.Raycast(playerShip.transform.position, pdirection1, out phitInfo1, pdistance1);
-            bool phit2 = Physics.Raycast(playerShip.transform.position, pdirection2, out phitInfo2, pdistance2);
-            bool pleftCollided = Physics.Raycast(playerShip.transform.position, pdirection3, out pleftHit, pdistance3);
-            bool prightCollided = Physics.Raycast(playerShip.transform.position, pdirection4, out prightHit, pdistance4);
+            if(pirateShip != null)pirateShip.transform.rotation = Quaternion.Euler(rotationSpeed * -10f * Time.deltaTime,0f, 0f) * pirateShip.transform.rotation;
+        }
 
-            if (phit1 || phit2)
-            {
-                _isIsland = true;
-            }
-            else
-            {
-                _isIsland = false;
-            }
-            
-            if (roaming)
-            {
-                float speed = 10f; // Change this to adjust the speed of the pirate ship
-
-                // Move the pirate ship forward in a random direction
-                transform.Translate(Vector3.forward * Time.deltaTime * speed);
-                transform.Rotate(Random.Range(-10f, 10f), Random.Range(-10f, 10f), Random.Range(-10f, 10f));
-
-                // Check if the pirate ship is colliding with an island
-                RaycastHit hit;
-                if (Physics.Raycast(transform.position, transform.forward, out hit, 10f))
-                {
-                    if (hit.collider.CompareTag("Island"))
-                    {
-                        roaming = false;
-                    }
-                }
-            }
-
-            // Check if the left or right raycasts hit an island
-            if (pleftCollided || prightCollided)
-            {
-                //Debug.Log("Something collided!!!!");
-                // Check if the left hit is a PickupPrefab or DeliverPrefab
-                if (pleftCollided && pleftHit.collider.gameObject.CompareTag("PickupPrefab"))
-                {
-                    if (playerShip.tag == "ShipEmpty")
-                    {
-                        Debug.Log("Left side collided with a PickupPrefab!");
-                        CollectItem();
-                    }
-                }
-                else if (pleftCollided && pleftHit.collider.gameObject.CompareTag("DeliverPrefab"))
-                {
-                    if (playerShip.tag == "ShipFull")
-                    {
-                        Debug.Log("Left side collided with a DeliverPrefab!");
-                        DeliverItem();
-                    }
-                }
-
-                // Check if the right hit is a PickupPrefab or DeliverPrefab
-                if (prightCollided && prightHit.collider.gameObject.CompareTag("PickupPrefab"))
-                {
-                    if (playerShip.tag == "ShipEmpty")
-                    {
-                        Debug.Log("Right side collided with a PickupPrefab!");
-                        CollectItem();
-                    }
-                }
-                else if (prightCollided && prightHit.collider.gameObject.CompareTag("DeliverPrefab"))
-                {
-                    if (playerShip.tag == "ShipFull")
-                    {
-                        Debug.Log("Right side collided with a DeliverPrefab!");
-                        DeliverItem();
-                    }
-                }
-                Debug.DrawRay(playerShip.transform.position, pdirection3 * pleftHit.distance, Color.yellow);
-                Debug.DrawRay(playerShip.transform.position, pdirection4 * prightHit.distance, Color.yellow);
-            }
-            else
-            {
-                Debug.DrawRay(playerShip.transform.position, pdirection3, Color.blue);
-                Debug.DrawRay(playerShip.transform.position, pdirection4, Color.white);
-            }*/
-            
+        public void StartButtonClicked()
+        {
+            SpawnPirateShip();
+            SpawnCamera();
         }
 
         public void SpawnCamera()
@@ -337,9 +254,10 @@ namespace Script
             // Calculate the initial position of the camera
             Vector3 position = -transform.forward * cameraDistanceFromEarth;
             Vector3 cameraPosition = new Vector3(29.5f, -16.8f, -170f);
-            // Spawn the camera at the calculated position
-            GameObject cameraObject = Instantiate(cameraPrefab, position, Quaternion.identity);
-            cameraObject.transform.position = position + cameraPosition;
+            while (cameraObject.transform.position == position + cameraPosition)
+            {
+                cameraObject.transform.position = Vector3.Lerp(cameraObject.transform.position, position + cameraPosition, Time.deltaTime * 10f);
+            }
             cameraObject.transform.LookAt(transform.position);
             cameraObject.transform.rotation = Quaternion.Euler(-3.7f, -5.9f, 0f);
         }
@@ -358,9 +276,6 @@ namespace Script
         void SpawnPirateShip()
         {
             Vector3 oppositePosition = -playerShip.transform.position;
-            Vector3 randomDirection = Random.onUnitSphere;
-
-            
             pirateShip = Instantiate(pirateShipPrefab, oppositePosition, Quaternion.identity);
             pirateShip.transform.LookAt(transform.position);
             pirateShip.transform.parent = transform;
