@@ -14,9 +14,10 @@ namespace Script
         public int score = 0;
         public int inventory = 0;
         public TMP_Text scoreText;
-        public float radius = 5f;
-        public float moveSpeed = 1f;
-        public float rotationSpeed = 1f;
+        [SerializeField] public float radius = 10f;
+        [SerializeField] public float moveSpeed = 0.5f;
+        [SerializeField] public float rotationSpeed = 0.5f;
+        
 
         public float right = 0f;
         public float up = 0f;
@@ -30,15 +31,32 @@ namespace Script
 
         public float cameraDistanceFromEarth = 10f; // The distance from the Earth sphere to spawn the camera
 
+        public bool roaming = true;
+        public int currentPickUpIndex;
+        public int currentDeliverIndex;
+
         public GameObject cloudPrefab;
         public GameObject playerPrefab;
+        public GameObject playerPickUpPrefab;
         public GameObject playerShip;
+        public GameObject pirateShipPrefab;
+        public GameObject pirateShip;
         public GameObject islandPrefab;
         public GameObject cameraPrefab;
+        public GameObject pickUpPrefab;
+        public GameObject deliverPrefab;
         public GameObject directionalLight;
         public GameObject cloud1;
+        public List<GameObject> islands;
+        
+        public LayerMask islandLayer;
+        public float raycastDistance = 10f;
+        
+        private GameObject currentPickUp;
+        private GameObject currentDeliver;
         
         public Collider playerShipCollider;
+        public CharacterController IslandController;
         public float islandCollisionDistance = 1f;
 
         public List<Vector3> existingIslandPositions = new List<Vector3>();
@@ -50,6 +68,7 @@ namespace Script
         {
             SpawnCamera();
             SpawnPlayerShip();
+            SpawnPirateShip();
             SpawnIslands();
             scoreText = GameObject.Find("ScoreText").GetComponent<TMP_Text>();
             UpdateScoreText();
@@ -60,10 +79,11 @@ namespace Script
             
             // Assign the playerShip's collider to the playerShipCollider field
             playerShipCollider = playerShip.GetComponent<Collider>();
+            IslandController = islands[0].GetComponent<CharacterController>();
+            playerShip.tag = "ShipEmpty";
+            SetRandomPickUp(99);
         }
-
-
-
+        
         private void Update()
         {
             Vector3 direction1 = new Vector3(0.5f, 5f, 6f);
@@ -72,28 +92,75 @@ namespace Script
             Vector3 direction2 = new Vector3(-0.5f, 5f, 6f);
             direction2 = (direction2 + playerShip.transform.position);
             float distance2 = 2f;
+            Vector3 direction3 = new Vector3(-5f, 0f, (radius / 5 * 5.2f));
+            direction3 = (direction3 + playerShip.transform.position);
+            float distance3 = 2f;
+            Vector3 direction4 = new Vector3(5f, 0f, (radius / 5 * 5.2f));
+            direction4 = (direction4 + playerShip.transform.position);
+            float distance4 = 2f;
             
-            RaycastHit hitInfo1, hitInfo2;
+            RaycastHit hitInfo1, hitInfo2, leftHit, rightHit;
             bool hit1 = Physics.Raycast(playerShip.transform.position, direction1, out hitInfo1, distance1);
             bool hit2 = Physics.Raycast(playerShip.transform.position, direction2, out hitInfo2, distance2);
+            bool leftCollided = Physics.Raycast(playerShip.transform.position, direction3, out leftHit, distance3);
+            bool rightCollided = Physics.Raycast(playerShip.transform.position, direction4, out rightHit, distance4);
 
             if (hit1 || hit2)
             {
-                if (hit1) Debug.DrawRay(playerShip.transform.position, direction1 * hitInfo1.distance, Color.yellow);
-                if (hit2) Debug.DrawRay(playerShip.transform.position, direction2 * hitInfo2.distance, Color.yellow);
-                Debug.Log("Player collided with island");
                 _isIsland = true;
-                Debug.Log("isIsland"+_isIsland);
             }
             else
             {
-                Debug.DrawRay(playerShip.transform.position, direction1 * 1000, Color.white);
-                Debug.DrawRay(playerShip.transform.position, direction2 * 1000, Color.white);
                 _isIsland = false;
-                Debug.Log("isIsland"+_isIsland);
             }
-            
-            
+
+            // Check if the left or right raycasts hit an island
+            if (leftCollided || rightCollided)
+            {
+                //Debug.Log("Something collided!!!!");
+                // Check if the left hit is a PickupPrefab or DeliverPrefab
+                if (leftCollided && leftHit.collider.gameObject.CompareTag("PickupPrefab"))
+                {
+                    if (playerShip.tag == "ShipEmpty")
+                    {
+                        Debug.Log("Left side collided with a PickupPrefab!");
+                        CollectItem();
+                    }
+                }
+                else if (leftCollided && leftHit.collider.gameObject.CompareTag("DeliverPrefab"))
+                {
+                    if (playerShip.tag == "ShipFull")
+                    {
+                        Debug.Log("Left side collided with a DeliverPrefab!");
+                        DeliverItem();
+                    }
+                }
+
+                // Check if the right hit is a PickupPrefab or DeliverPrefab
+                if (rightCollided && rightHit.collider.gameObject.CompareTag("PickupPrefab"))
+                {
+                    if (playerShip.tag == "ShipEmpty")
+                    {
+                        Debug.Log("Right side collided with a PickupPrefab!");
+                        CollectItem();
+                    }
+                }
+                else if (rightCollided && rightHit.collider.gameObject.CompareTag("DeliverPrefab"))
+                {
+                    if (playerShip.tag == "ShipFull")
+                    {
+                        Debug.Log("Right side collided with a DeliverPrefab!");
+                        DeliverItem();
+                    }
+                }
+                Debug.DrawRay(playerShip.transform.position, direction3 * leftHit.distance, Color.yellow);
+                Debug.DrawRay(playerShip.transform.position, direction4 * rightHit.distance, Color.yellow);
+            }
+            else
+            {
+                Debug.DrawRay(playerShip.transform.position, direction3, Color.blue);
+                Debug.DrawRay(playerShip.transform.position, direction4, Color.white);
+            }
             
             // Get the current rotation of the world and ship
             Quaternion earthRotation = transform.rotation;
@@ -165,18 +232,116 @@ namespace Script
             // Set the new rotation of the world
             transform.rotation = earthRotation;
             playerShip.transform.rotation = shipRotation;
+            
             directionalLight.transform.rotation = Quaternion.Euler(0f, rotationSpeed * 10f * Time.deltaTime, 0f) * directionalLight.transform.rotation;
+            /*
+            Vector3 pdirection1 = new Vector3(0.5f, 5f, 6f);
+            pdirection1 = (pdirection1 + playerShip.transform.position);
+            float pdistance1 = 2f;
+            Vector3 pdirection2 = new Vector3(-0.5f, 5f, 6f);
+            pdirection2 = (pdirection2 + playerShip.transform.position);
+            float pdistance2 = 2f;
+            Vector3 pdirection3 = new Vector3(-5f, 0f, 5.2f);
+            pdirection3 = (pdirection3 + playerShip.transform.position);
+            float pdistance3 = 2f;
+            Vector3 pdirection4 = new Vector3(5f, 0f, 5.2f);
+            pdirection4 = (pdirection4 + playerShip.transform.position);
+            float pdistance4 = 2f;
+            
+            RaycastHit phitInfo1, phitInfo2, pleftHit, prightHit;
+            bool phit1 = Physics.Raycast(playerShip.transform.position, pdirection1, out phitInfo1, pdistance1);
+            bool phit2 = Physics.Raycast(playerShip.transform.position, pdirection2, out phitInfo2, pdistance2);
+            bool pleftCollided = Physics.Raycast(playerShip.transform.position, pdirection3, out pleftHit, pdistance3);
+            bool prightCollided = Physics.Raycast(playerShip.transform.position, pdirection4, out prightHit, pdistance4);
+
+            if (phit1 || phit2)
+            {
+                _isIsland = true;
+            }
+            else
+            {
+                _isIsland = false;
+            }
+            
+            if (roaming)
+            {
+                float speed = 10f; // Change this to adjust the speed of the pirate ship
+
+                // Move the pirate ship forward in a random direction
+                transform.Translate(Vector3.forward * Time.deltaTime * speed);
+                transform.Rotate(Random.Range(-10f, 10f), Random.Range(-10f, 10f), Random.Range(-10f, 10f));
+
+                // Check if the pirate ship is colliding with an island
+                RaycastHit hit;
+                if (Physics.Raycast(transform.position, transform.forward, out hit, 10f))
+                {
+                    if (hit.collider.CompareTag("Island"))
+                    {
+                        roaming = false;
+                    }
+                }
+            }
+
+            // Check if the left or right raycasts hit an island
+            if (pleftCollided || prightCollided)
+            {
+                //Debug.Log("Something collided!!!!");
+                // Check if the left hit is a PickupPrefab or DeliverPrefab
+                if (pleftCollided && pleftHit.collider.gameObject.CompareTag("PickupPrefab"))
+                {
+                    if (playerShip.tag == "ShipEmpty")
+                    {
+                        Debug.Log("Left side collided with a PickupPrefab!");
+                        CollectItem();
+                    }
+                }
+                else if (pleftCollided && pleftHit.collider.gameObject.CompareTag("DeliverPrefab"))
+                {
+                    if (playerShip.tag == "ShipFull")
+                    {
+                        Debug.Log("Left side collided with a DeliverPrefab!");
+                        DeliverItem();
+                    }
+                }
+
+                // Check if the right hit is a PickupPrefab or DeliverPrefab
+                if (prightCollided && prightHit.collider.gameObject.CompareTag("PickupPrefab"))
+                {
+                    if (playerShip.tag == "ShipEmpty")
+                    {
+                        Debug.Log("Right side collided with a PickupPrefab!");
+                        CollectItem();
+                    }
+                }
+                else if (prightCollided && prightHit.collider.gameObject.CompareTag("DeliverPrefab"))
+                {
+                    if (playerShip.tag == "ShipFull")
+                    {
+                        Debug.Log("Right side collided with a DeliverPrefab!");
+                        DeliverItem();
+                    }
+                }
+                Debug.DrawRay(playerShip.transform.position, pdirection3 * pleftHit.distance, Color.yellow);
+                Debug.DrawRay(playerShip.transform.position, pdirection4 * prightHit.distance, Color.yellow);
+            }
+            else
+            {
+                Debug.DrawRay(playerShip.transform.position, pdirection3, Color.blue);
+                Debug.DrawRay(playerShip.transform.position, pdirection4, Color.white);
+            }*/
+            
         }
 
         public void SpawnCamera()
         {
             // Calculate the initial position of the camera
             Vector3 position = -transform.forward * cameraDistanceFromEarth;
-
+            Vector3 cameraPosition = new Vector3(29.5f, -16.8f, -170f);
             // Spawn the camera at the calculated position
             GameObject cameraObject = Instantiate(cameraPrefab, position, Quaternion.identity);
-            cameraObject.transform.position = position;
+            cameraObject.transform.position = position + cameraPosition;
             cameraObject.transform.LookAt(transform.position);
+            cameraObject.transform.rotation = Quaternion.Euler(-3.7f, -5.9f, 0f);
         }
 
         public void SpawnPlayerShip()
@@ -189,18 +354,39 @@ namespace Script
             playerShip.transform.position = position;
             playerShip.transform.LookAt(transform.position);
         }
+        
+        void SpawnPirateShip()
+        {
+            Vector3 oppositePosition = -playerShip.transform.position;
+            Vector3 randomDirection = Random.onUnitSphere;
+
+            
+            pirateShip = Instantiate(pirateShipPrefab, oppositePosition, Quaternion.identity);
+            pirateShip.transform.LookAt(transform.position);
+            pirateShip.transform.parent = transform;
+            pirateShip.transform.rotation = Quaternion.Euler(0f, 0, 0f);
+            pirateShip.transform.position = new Vector3(0f, 0f, 0f);
+        }
 
         // This method is called when the player collects an item
         public void CollectItem()
         {
             inventory++;
-            UpdateScoreText();
+            SetIslandPrefab(currentPickUpIndex, islandPrefab);
+            changeShipState(playerPickUpPrefab);
+            playerShip.tag = "ShipFull";
+            SetRandomDeliver(currentPickUpIndex);
         }
 
         // This method is called when the player delivers an item
         public void DeliverItem()
         {
             score++;
+            inventory--;
+            SetIslandPrefab(currentDeliverIndex, islandPrefab);
+            changeShipState(playerPrefab);
+            playerShip.tag = "ShipEmpty";
+            SetRandomPickUp(currentDeliverIndex);
             UpdateScoreText();
         }
 
@@ -210,10 +396,72 @@ namespace Script
             scoreText.text = "Score: " + score.ToString();
         }
 
+        public void changeShipState(GameObject newPrefab)
+        {
+            // Get the current island's position and rotation
+            Vector3 position = playerShip.transform.position;
+            Quaternion rotation = playerShip.transform.rotation;
+
+            // Destroy the current island
+            Destroy(playerShip);
+
+            // Instantiate the new island prefab at the same position and rotation
+            playerShip = Instantiate(newPrefab, position, rotation);
+        }
+        
+        public void SetRandomPickUp(int oldIndex)
+        {
+            int index = Random.Range(0, islands.Count);
+            while (index == oldIndex)
+            {
+                index = Random.Range(0, islands.Count);
+            }
+            SetIslandPrefab(index, pickUpPrefab);
+            islands[index].tag = "PickupPrefab";
+            currentPickUpIndex = index;
+            currentPickUp = islands[index];
+            Debug.Log("Set island " + index + " to pick up");
+        }
+
+        public void SetRandomDeliver(int oldIndex)
+        {
+            int index = Random.Range(0, islands.Count);
+            while (index == oldIndex)
+            {
+                index = Random.Range(0, islands.Count);
+            }
+            SetIslandPrefab(index, deliverPrefab);
+            islands[index].tag = "DeliverPrefab";
+            currentDeliverIndex = index;
+            currentDeliver = islands[index];
+            Debug.Log("Set island " + index + " to deliver");
+        }
+
+        public void SetIslandPrefab(int index, GameObject newPrefab)
+        {
+            if (index < 0 || index >= islands.Count)
+            {
+                Debug.LogError("Invalid index for island prefab change.");
+                return;
+            }
+
+            // Get the current island's position and rotation
+            Vector3 position = islands[index].transform.position;
+            Quaternion rotation = islands[index].transform.rotation;
+
+            // Destroy the current island
+            Destroy(islands[index]);
+
+            // Instantiate the new island prefab at the same position and rotation
+            GameObject newIsland = Instantiate(newPrefab, position, rotation);
+            newIsland.transform.parent = transform;
+            islands[index] = newIsland;
+        }
+
         void SpawnClouds()
         {
-            int numClouds = 480; // Change this to the number of clouds you want to spawn
-            float radius = 8f; // Change this to the radius of the sphere where you want to spawn the clouds
+            int numClouds = 960; // Change this to the number of clouds you want to spawn
+            float orbitradius = radius * 1.6f; // Change this to the radius of the sphere where you want to spawn the clouds
 
             for (int i = 0; i < numClouds; i+=12)
             {
@@ -225,9 +473,9 @@ namespace Script
                 float theta = 2 * Mathf.PI * u;
                 float phi = Mathf.Acos(2 * v - 1);
 
-                x = radius * Mathf.Sin(phi) * Mathf.Cos(theta);
-                y = radius * Mathf.Sin(phi) * Mathf.Sin(theta);
-                z = radius * Mathf.Cos(phi);
+                x = orbitradius * Mathf.Sin(phi) * Mathf.Cos(theta);
+                y = orbitradius * Mathf.Sin(phi) * Mathf.Sin(theta);
+                z = orbitradius * Mathf.Cos(phi);
 
                 // Spawn the first cloud
                 Vector3 pos = new Vector3(x, y, z);
@@ -252,7 +500,7 @@ namespace Script
                 
         void SpawnIslands()
         {
-            int numIslands = 5; // Change this to the number of islands you want to spawn
+            int numIslands = 8; // Change this to the number of islands you want to spawn
             float minDistance = 7f; // Change this to the minimum distance between islands
             float radius = transform.localScale.x / 2f; // Change this to the radius of the Earth sphere
             int maxAttempts = 50; // Maximum number of attempts to find a suitable position for an island
@@ -279,6 +527,7 @@ namespace Script
                         islandPositions.Add(pos);
                         GameObject island = Instantiate(islandPrefab, pos, Quaternion.identity);
                         island.transform.parent = transform; // Make the Earth sphere the parent of the island object
+                        islands.Add(island);
 
                         // Calculate the direction from the island to the center of the Earth
                         Vector3 centerDirection = transform.position.normalized;

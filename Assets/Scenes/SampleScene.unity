@@ -165,13 +165,25 @@ MonoBehaviour:
   up: 0
   turn: 0
   cameraDistanceFromEarth: 100
+  currentPickUpIndex: 0
+  currentDeliverIndex: 0
   cloudPrefab: {fileID: 4240638487326108326, guid: 42eaac9ac3b05ca4da373fb4dff6a2a8, type: 3}
   playerPrefab: {fileID: 5497414871638830487, guid: c36def8f78a3e824abbea299739158ba, type: 3}
+  playerPickUpPrefab: {fileID: 5497414871638830487, guid: d6d034ab96d7ded428809f83189521ca, type: 3}
   playerShip: {fileID: 0}
   islandPrefab: {fileID: 4139365077135130623, guid: c64953cbd114b1242bd65ff79570cc50, type: 3}
   cameraPrefab: {fileID: 2639364436327016434, guid: c8c72c5d0d9db654bbb132da08347335, type: 3}
+  pickUpPrefab: {fileID: 4139365077135130623, guid: 0c3cd494a0d33c044b659abf0d7b5cce, type: 3}
+  deliverPrefab: {fileID: 4139365077135130623, guid: 07a13dc63d7ba4d45b06692303dcae94, type: 3}
   directionalLight: {fileID: 705507993}
+  cloud1: {fileID: 0}
+  islands: []
+  islandLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  raycastDistance: 10
   playerShipCollider: {fileID: 0}
+  IslandController: {fileID: 0}
   islandCollisionDistance: 1
   existingIslandPositions: []
 --- !u!135 &291344502
@@ -207,7 +219,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 3a0aad5c28b1fbc4e89e12db9ee38821, type: 2}
+  - {fileID: 2100000, guid: 4cf0a9b6ad94f4b4fb95af2aaf684986, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
